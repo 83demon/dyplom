@@ -46,16 +46,23 @@ def visualize_residuals(columns_measure,name,label,img_name):
     plt.clf()
     #plt.show()
 
-def measure(img):
-    return column_measure(img).max()
+def measure(img,window_size=0):
+    return column_measure(img,window_size).max()
 
-def column_measure(img):
-    return img.sum(axis=-1).T.sum(axis=1)
+def column_measure(img,window_size=0):
+    measure_data = img.sum(axis=-1).T.sum(axis=1,keepdims=True)
+    measure_data_copy = np.pad(measure_data.copy(),((window_size//2,window_size//2),(0,0)))
+    for i in range(window_size//2,measure_data.shape[0]+window_size//2):
+        temp1 = measure_data[i - window_size // 2:i + window_size // 2 + 1]
+        temp = np.sum(measure_data[i-window_size//2:i+window_size//2+1],dtype=np.uint8)
+        measure_data_copy[i] //= temp
+
+    return measure_data_copy[window_size//2:-window_size//2]
 
 
-
-for i in range(4):
-    for j in range(4):
+window_size = 5
+for i in range(3):
+    for j in range(3):
         if i==j and not i:
             continue
 
@@ -67,9 +74,9 @@ for i in range(4):
 
         img_sh = shift(img,i,j)
         res = abs(img_sh-img)
-        measure_ij = measure(res)
+        measure_ij = measure(res,window_size)
         print(f"Measure for {i}-{j}: {measure_ij}")
-        col_measure = column_measure(res)
+        col_measure = column_measure(res,window_size)
         make_hist(col_measure,f'Histogram of vertical {i} and horizontal {j}.\nMaximum value is {measure_ij}',('value of a column measure','number of columns'),folder_prefix+histogram_prefix+img_name)
         visualize_residuals(col_measure,'',('number of  column','value of a column measure'),folder_prefix+res_prefix+img_name)
         visualize(res,folder_prefix+img_name+'.jpg')
