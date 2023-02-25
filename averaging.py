@@ -1,4 +1,3 @@
-import cv2
 import cv2 as cv
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,8 +22,18 @@ def read_img(filename):
 def mean_vector(vec1,vec2):
     return np.sum((np.array(vec2)-np.array(vec1))/len(vec1),axis=0).tolist()
 
+def find_max(matrix_rgb,channel,mode:str,verbose:bool):
+    matrix = matrix_rgb[:,:,channel]
+    if mode == 'density':
+        point = detect_shapes(matrix, matrix_rgb, 255, verbose)
+        coords = list(point)
+    elif mode == 'simple':
+        coords = np.unravel_index(np.argmax(matrix), matrix.shape)  # return (y,x)
+        coords = list(coords)
+    return coords
 
-def find_max(img,channel,mode:str,verbose:bool):
+
+def find_max_perfect_squares(img,channel,mode:str,verbose:bool):
     """finds position of a maximum of a specific channel, in every of shape[0]*matrices
         of shape (sqrt(shape[0]),sqrt(shape[0]))
         img has shape of (shape[0],shape[0])
@@ -34,20 +43,14 @@ def find_max(img,channel,mode:str,verbose:bool):
     a = np.sqrt(img.shape[0]).astype(int)
     for i in range(a*a):
         matrix_rgb = img[(i//a)*a:((i//a)+1)*a,(i%a)*a:((i%a)+1)*a,:]
-        matrix = matrix_rgb[:,:,channel]
-        if mode=='density':
-            point = detect_shapes(matrix,matrix_rgb,255,verbose)
-            coords = list(point)
-            coords[0] += (i//a)*a
-            coords[1] += (i%a)*a
-            points.append(coords)
-        elif mode=='simple':
-            coords = np.unravel_index(np.argmax(matrix),matrix.shape) #return (y,x)
-            coords = list(coords)
-            coords[0] += (i//a)*a
-            coords[1] += (i%a)*a
-            points.append(tuple(coords))
-
+        coords = find_max(matrix_rgb,channel,mode,verbose)
+        if mode == 'density':
+            coords[0] += (i // a) * a
+            coords[1] += (i % a) * a
+        elif mode == 'simple':
+            coords[0] += (i // a) * a
+            coords[1] += (i % a) * a
+        points.append(coords)
     return points
 
 
@@ -120,7 +123,7 @@ def detect_shapes(img,rgb_img,threshold_max,verbose):
     gray = img
 
     #threshold = cv.adaptiveThreshold(gray,threshold_max,cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,9,13)
-    _,threshold = cv.threshold(gray,0,threshold_max,cv.THRESH_BINARY+cv2.THRESH_TRIANGLE)
+    _,threshold = cv.threshold(gray,0,threshold_max,cv.THRESH_BINARY+cv.THRESH_TRIANGLE)
 
     figures = find_max_area_fig(threshold,verbose)
 
@@ -129,9 +132,9 @@ def detect_shapes(img,rgb_img,threshold_max,verbose):
     rgb_img[point] = (255,0,0)
     if verbose:
         fig, axes = plt.subplots(1,4)
-        axes[0].imshow(cv.cvtColor(threshold, cv2.COLOR_BGR2RGB))
-        axes[1].imshow(cv.cvtColor(img, cv2.COLOR_BGR2RGB))
-        axes[2].imshow(cv.cvtColor(gray, cv2.COLOR_GRAY2RGB))
+        axes[0].imshow(cv.cvtColor(threshold, cv.COLOR_BGR2RGB))
+        axes[1].imshow(cv.cvtColor(img, cv.COLOR_BGR2RGB))
+        axes[2].imshow(cv.cvtColor(gray, cv.COLOR_GRAY2RGB))
         axes[3].imshow(rgb_img)
         plt.show()
 
@@ -170,11 +173,11 @@ if __name__ == "__main__":
         image = cropped_img.copy()
         arrow_color = (0,0,255)
         for i in range(len(points)):
-            image = cv2.arrowedLine(image,points[i],points_shifted[i],arrow_color,2)
+            image = cv.arrowedLine(image,points[i],points_shifted[i],arrow_color,2)
         if channel==2:
-            axes[0,0].imshow(cv2.cvtColor(cropped_img, cv2.COLOR_BGR2RGB))
-            axes[0,1].imshow(cv2.cvtColor(cropped_img_shifted, cv2.COLOR_BGR2RGB))
-        axes[1,channel].imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+            axes[0,0].imshow(cv.cvtColor(cropped_img, cv.COLOR_BGR2RGB))
+            axes[0,1].imshow(cv.cvtColor(cropped_img_shifted, cv.COLOR_BGR2RGB))
+        axes[1,channel].imshow(cv.cvtColor(image, cv.COLOR_BGR2RGB))
 
 
     plt.show()
