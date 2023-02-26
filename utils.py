@@ -93,14 +93,19 @@ class SpecialList(list):
     def __init__(self, data: list = []):
         super().__init__(data)
 
-    def __add__(self, other: list):
-        assert len(self) == len(other)
+    def __add__(self, other):
+        if isinstance(other,(int,float)):
+            return SpecialList([other + i for i in self])
+        else:
+            assert len(self) == len(other)
 
-        new = SpecialList()
-        for i in range(len(self)):
-            new.append(self[i] + other[i])
-        return new
+            new = SpecialList()
+            for i in range(len(self)):
+                new.append(self[i] + other[i])
+            return new
 
+    def __radd__(self, other):
+        return self+other
     def __neg__(self):
         new = SpecialList(self)
         for i in range(len(self)):
@@ -120,6 +125,9 @@ class SpecialList(list):
             assert len(self)==len(other)
             return SpecialList([other[i]*self[i] for i in range(len(self))])
 
+    def __rmul__(self, other):
+        return self*other
+
     def __truediv__(self, other):
         if isinstance(other,(int,float)):
             return SpecialList([i/other for i in self])
@@ -133,3 +141,53 @@ class SpecialList(list):
         elif isinstance(other,SpecialList):
             assert len(self)==len(other)
             return SpecialList(list(map(math.floor,self/other)))
+
+
+class Vector:
+
+    def __init__(self, start: SpecialList, end: SpecialList):
+        assert isinstance(start,SpecialList) and isinstance(end,SpecialList) \
+               and len(start)==len(end)==2
+        self.start = start
+        self.end = end
+
+    def __repr__(self):
+        return f"Vector's start is {self.start}, end is {self.end}"
+
+    def get_direction(self):
+        return self.end - self.start
+
+    def get_length(self):
+        return np.sqrt(np.sum(i**2 for i in self.get_direction()))
+
+    def draw(self,canvas,size=3,color=(255,0,255)):
+        cv2.arrowedLine(canvas, self.start, self.end, color,size)  # translation (y,x) -> (x,y)
+    def display(self,is_canvas=False,canvas=None,size=3,color=(255,0,255)):
+        if not is_canvas:
+            canvas = np.zeros((max(self.start[1],self.end[1],1),max(self.start[0],self.end[0],1),3), np.uint8)
+        self.draw(canvas,color,size)
+        Image_Helper(img=canvas).show("Vector")
+
+    def __add__(self, other):
+        if isinstance(other, Vector):
+            return Vector(self.start,self.end+other.get_direction())
+        else:
+            raise TypeError(f"Bad type argument given: {type(other)}. Expected type is {type(self)}")
+
+    def __sub__(self,other):
+        if isinstance(other, Vector):
+            return Vector(self.start+other.get_direction(),self.end)
+        else:
+            raise TypeError(f"Bad type argument given: {type(other)}. Expected type is {type(self)}")
+
+    def __mul__(self, other):
+        if isinstance(other,(int,float)):
+            return Vector(self.start,self.end+self.get_direction()*(other-1))
+        else:
+            raise TypeError(f"Bad type argument given: {type(other)}. Expected type is int or float.")
+
+    def __rmul__(self, other):
+        return self*other
+
+    def __neg__(self):
+        return Vector(self.start,self.start-self.get_direction())
