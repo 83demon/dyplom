@@ -17,10 +17,10 @@ class Image_Helper:
     def display_coordinates(self, event, x, y, flags, params):
         if event == 2:
             if not isinstance(self.active_channel, int):
-                print(f"Coordinates: {x, y}; RGB is : {(self.img[y, x, 2], self.img[y, x, 1], self.img[y, x, 0])}")
+                print(f"Coordinates (y,x): {y,x}; RGB is : {(self.img[y, x, 2], self.img[y, x, 1], self.img[y, x, 0])}")
             else:
                 print(
-                    f"Coordinates: {x, y}; Color is {Image_Helper.color_to_channel_map[self.active_channel]} : {self.img[y, x, self.active_channel]}")
+                    f"Coordinates (y,x): {y,x}; Color is {Image_Helper.color_to_channel_map[self.active_channel]} : {self.img[y, x, self.active_channel]}")
 
     @property
     def shape(self):
@@ -40,6 +40,7 @@ class Image_Helper:
             cv2.namedWindow(name)
             cv2.setMouseCallback(name, self.display_coordinates)
         cv2.imshow(name, self.img[:, :, channel] if isinstance(channel, int) else self.img)
+        cv2.moveWindow(name,0,0)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
@@ -68,6 +69,8 @@ class Image_Helper:
             img=self.img[i * height_length:(i + 1) * height_length, j * width_length:(j + 1) * width_length])
                 for i in range(height_num) for j in range(width_num)]
 
+
+
     def shift(self, vertical_shift=0, horizontal_shift=0):
         if vertical_shift >= 0 and horizontal_shift >= 0:
             return Image_Helper(
@@ -88,7 +91,6 @@ class Image_Helper:
                 img=np.pad(self.img, ((0, -vertical_shift), (0, -horizontal_shift), (0, 0)))[-vertical_shift:,
                     -horizontal_shift:, :])
 
-
 class SpecialList(list):
     def __init__(self, data: list = []):
         super().__init__(data)
@@ -103,6 +105,10 @@ class SpecialList(list):
             for i in range(len(self)):
                 new.append(self[i] + other[i])
             return new
+
+    def __iadd__(self, other):
+        self = self + other
+        return self
 
     def __radd__(self, other):
         return self+other
@@ -152,7 +158,7 @@ class Vector:
         self.end = end
 
     def __repr__(self):
-        return f"Vector's start is {self.start}, end is {self.end}"
+        return f"(Start: {self.start}; End: {self.end}; Direction:{self.get_direction()})"
 
     def get_direction(self):
         return self.end - self.start
@@ -161,12 +167,12 @@ class Vector:
         return np.sqrt(np.sum(i**2 for i in self.get_direction()))
 
     def draw(self,canvas,size=3,color=(255,0,255)):
-        cv2.arrowedLine(canvas, self.start, self.end, color,size)  # translation (y,x) -> (x,y)
-    def display(self,is_canvas=False,canvas=None,size=3,color=(255,0,255)):
+        return cv2.arrowedLine(canvas, (self.start[1],self.start[0]), (self.end[1],self.end[0]), color,size)  # translation (y,x) -> (x,y)
+    def display(self,is_canvas=False,canvas=None,size=3,color=(255,0,255),name="",show_coordinates=False):
         if not is_canvas:
             canvas = np.zeros((max(self.start[1],self.end[1],1),max(self.start[0],self.end[0],1),3), np.uint8)
-        self.draw(canvas,color,size)
-        Image_Helper(img=canvas).show("Vector")
+        canvas = self.draw(canvas,size,color)
+        Image_Helper(img=canvas).show(name=name,show_coordinates=show_coordinates)
 
     def __add__(self, other):
         if isinstance(other, Vector):
