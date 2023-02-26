@@ -1,52 +1,63 @@
 import cv2
-from image_helper import Image_Helper
-from averaging import find_max
-from shift import shift
+from utils import Image_Helper, SpecialList, Vector
+from point_finders import MaximumColorFinder
 
-imagepath = r"photos\\mountains.jpg"
-split_vert, split_horiz = 3,3
-Image = Image_Helper(filepath=imagepath)
-Image_shifted = Image_Helper(img=shift(Image.img,3,5))
-images = Image.split(split_vert,split_horiz)
-images_shifted = Image_shifted.split(split_vert,split_horiz)
-channel = 2 # BGR is by default
 
-points_global_avg=[0,0]
-points_shifted_global_avg=[0,0]
-points_global=[]
-points_shifted_global=[]
-for i in range(split_vert):
-    for j in range(split_horiz):
-        img, shifted_img = images[j+i*split_vert].img, images_shifted[j+i*split_vert].img
+class LocalAndGlobalMaximumShift(Image_Helper):
 
-        points =find_max(img,channel,"simple",False)
-        points_shifted = find_max(shifted_img,channel,"simple",False)
-        vector = [points_shifted[0]-points[0],points_shifted[1]-points[1]]
+    def __init__(self, split_vert, split_horiz, vert_shift, horiz_shift, channel, img=None, filepath=None):
+        super().__init__(img, filepath)
+        self.Image_main = self
+        self.Image_shifted = self.Image_main.shift(vertical_shift=vert_shift, horizontal_shift=horiz_shift)
+        self.Images_main_split = self.Image_main.split(height_num=split_vert, width_num=split_horiz)
+        self.Images_shifted_split = self.Image_shifted.split(height_num=split_vert, width_num=split_horiz)
 
-        points[0] += i*(Image.img.shape[0]//split_vert) # coordinates are (y,x)
-        points[1] += j*(Image.img.shape[1]//split_horiz)
+        self.split_vert = split_vert
+        self.split_horiz = split_horiz
 
-        points_shifted[0] += i*(Image_shifted.img.shape[0]//split_vert) # coordinates are (y,x)
-        points_shifted[1] += j*(Image_shifted.img.shape[1]//split_horiz)
+        self.global_avg = SpecialList([0, 0])
+        self.global_avg_shifted = SpecialList([0, 0])
+        self.vectors = []
 
-        points_global_avg[0] += points[0]//(split_vert*split_horiz)
-        points_global_avg[1] += points[1]//(split_vert*split_horiz)
-        points_shifted_global_avg[0] += points_shifted[0]//(split_vert*split_horiz)
-        points_shifted_global_avg[1] += points_shifted[1]//(split_vert*split_horiz)
+        self.channel = channel
 
-        points_global.append(tuple(points))
-        points_shifted_global.append(tuple(points_shifted))
+    def find_global_vector(self):
+        for i in range(self.split_vert):
+            for j in range(self.split_horiz):
+                img, shifted_img = self.Images_main_split[j + i * self.split_vert].img, \
+                                   self.Images_shifted_split[j + i * self.split_vert].img
 
-        print((i,j), points, points_shifted, vector)
-        #images[j+i*split_vert].show()
-        #images_shifted[i].show()
+                points = SpecialList(MaximumColorFinder(img=img).find_max(self.channel))
 
-print()
-print(points_global)
-print(points_shifted_global)
-arrow_color = (255,0,255)
-for i in range(len(points_global)):
-    image = cv2.arrowedLine(Image.img, (points_global[i][1],points_global[i][0]),
-                                (points_shifted_global[i][1],points_shifted_global[i][0]), arrow_color, 4)  # translation (y,x) -> (x,y)
+                points_shifted = SpecialList(MaximumColorFinder(img=shifted_img).find_max(self.channel))
 
-Image_Helper(img=image).show()
+                # normalizing with the respect to number of subimage
+
+                points[0] += i * (self.Image_main.shape[0] // self.split_vert)  # coordinates are (y,x)
+                points[1] += j * (self.Image_main.shape[1] // self.split_horiz)
+
+                points_shifted[0] += i * (self.Image_shifted.shape[0] // self.split_vert)  # coordinates are (y,x)
+                points_shifted[1] += j * (self.Image_shifted.shape[1] // self.split_horiz)
+
+                vector = Vector(points, points_shifted)
+                self.vectors.append(vector)
+
+                self.global_avg += points
+                self.global_avg_shifted += points_shifted
+
+        self.global_avg //= (self.split_vert * self.split_horiz)
+        self.global_avg_shifted //= (self.split_vert * self.split_horiz)
+
+        return Vector(self.global_avg,self.global_avg_shifted)
+
+
+method = LocalAndGlobalMaximumShift(filepath=r"photos\\mountains.jpg",split_vert=3,split_horiz=3,
+                                    vert_shift=3,horiz_shift=7,channel=2)
+print(method.img.shape)
+global_vect = method.find_global_vector()
+print("Vectors: ")
+for vector in method.vectors:
+    print(vector)
+    vector.draw(method.Image_main.img)
+print("Global: ",global_vect)
+global_vect.display(is_canvas=True,canvas=method.Image_main.img,name="Vectors",show_coordinates=True,size=3,color=(0,255,255))
