@@ -121,7 +121,15 @@ class SpecialList(list):
             return SpecialList([other[i]*self[i] for i in range(len(self))])
 
     def __truediv__(self, other):
-        return self * ~other
+        if isinstance(other,(int,float)):
+            return SpecialList([i/other for i in self])
+        elif isinstance(other,SpecialList):
+            assert len(self)==len(other)
+            return self * ~other
 
     def __floordiv__(self, other):
-        return SpecialList(list(map(math.floor,self/other)))
+        if isinstance(other,(int,float)):
+            return SpecialList([i//other for i in self])
+        elif isinstance(other,SpecialList):
+            assert len(self)==len(other)
+            return SpecialList(list(map(math.floor,self/other)))
