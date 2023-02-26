@@ -5,19 +5,21 @@ from utils import Image_Helper
 
 
 class MaximumColorFinder(Image_Helper):
-    """Finds the point with the maximum color"""
+    """Finds the point with the maximum color.
+    Returns (y,x), i.e. swapped!!!"""
     def find_max(self, channel):
         assert isinstance(channel,int)
 
         matrix = self.img[:,:,channel]
-        coords = np.unravel_index(np.argmax(matrix), matrix.shape)  # return (y,x)
+        coords = np.unravel_index(np.argmax(matrix), matrix.shape)
         coords = list(coords)
-        return coords
+        return coords  # return (y,x)
 
 
 class DensityFinder(Image_Helper):
     """Finds the point with the maximum color in an area of the biggest density(area). Due to limitations of
-    recursion-depth it is advised to run on small images. It might be buggy."""
+    recursion-depth it is advised to run on small images. It might be buggy.
+    Returns (y,x), i.e. swapped!!!"""
     def find_max(self, channel, verbose: bool = False):
 
         assert isinstance(channel,int)
@@ -25,7 +27,7 @@ class DensityFinder(Image_Helper):
         points = self._detect_shapes(gray_img, 255, verbose)
         coords = list(points)
 
-        return coords
+        return coords  # return (y,x)
 
     def recur_find(self,arr, i, j, figs, fig, used):
         """Goes in particular direction. If there is no path, then it chooses next direction.
