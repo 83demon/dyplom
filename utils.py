@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import math
+from copy import copy
 
 class Image_Helper:
     color_to_channel_map = {2: "Red", 1: "Green", 0: "Blue"}
@@ -33,6 +34,9 @@ class Image_Helper:
     def crop(self, shape: tuple, bias: tuple = (0, 0)):
         "Crops first part of image of shape 'shape'"
         return Image_Helper(img=self.img[bias[0]:bias[0] + shape[0], bias[1]:bias[1] + shape[1], :])
+
+    def save(self,name,prefix=r".\\saved_photos\\"):
+        return cv2.imwrite(prefix+name,self.img)
 
     def show(self, name="", show_coordinates=False, channel=None):
         self.active_channel = channel
@@ -148,6 +152,9 @@ class SpecialList(list):
             assert len(self)==len(other)
             return SpecialList(list(map(math.floor,self/other)))
 
+    def copy(self):
+        return copy(self)
+
 
 class Vector:
 
@@ -197,3 +204,9 @@ class Vector:
 
     def __neg__(self):
         return Vector(self.start,self.start-self.get_direction())
+
+    def __eq__(self, other):
+        if isinstance(other,Vector):
+            return self.end==other.end and self.start == other.start
+        else:
+            raise TypeError("Can not compare Vector with non-Vector")
