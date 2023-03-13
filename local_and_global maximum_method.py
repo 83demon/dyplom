@@ -43,10 +43,21 @@ class LocalAndGlobalMaximumShift(Image_Helper):
         self.O_B1 = Vector(self.B,self.B1) + self.O_O1 + OB
         a = (self.O_A1 - OA).get_direction()
         b = (self.O_B1 -OB).get_direction()
-        transformation_matrix = np.matrix([a,b]).T
-        #inv_matrix = np.linalg.pinv(transformation_matrix)
-        #out = cv2.warpAffine(self.Image_main.img, inv_matrix, (self.Image_main.shape[1], self.Image_main.shape[0]))
-        #Image_Helper(img=out).show()
+
+        L = np.matrix([a,b]).T  # transformation matrix
+        if np.linalg.det(L)==0:
+            print("Matrix is singular. Only shifting by -s")
+            M = np.float32([[1,0, -self.O_O1.get_direction()[1]],
+                        [0,1, -self.O_O1.get_direction()[0]]])
+        else:
+            L_inverted = np.linalg.inv(L)
+            M = np.float32([[L_inverted[0,0], L_inverted[0,1], -self.O_O1.get_direction()[1]],
+                        [L_inverted[1,0], L_inverted[1,1], -self.O_O1.get_direction()[0]]])
+
+        img_restored = cv2.warpAffine(self.Image_shifted.img, M, (self.Image_main.shape[1],self.Image_main.shape[0]))
+        Image_restored = Image_Helper(img=img_restored) # shifting by (-s) vector
+        Image_restored.show("Restored")
+
 
 
     def _assign_points(self,global_vect):
@@ -103,12 +114,15 @@ class LocalAndGlobalMaximumShift(Image_Helper):
 method = LocalAndGlobalMaximumShift(filepath=r"photos\\moon.jpg",split_vert=2,split_horiz=2,
                                     vert_shift=3,horiz_shift=7,channel=2)
 print(method.img.shape)
-#method.main()
-global_vect = method._find_global_vector()
+method.main()
+print(method.O_O1.get_direction())
+#method.Image_main.show("main")
+#method.Image_shifted.show("shited")
+"""global_vect = method._find_global_vector()
 print("Vectors: ")
 for vector in method.vectors:
     print(vector)
     vector.draw(method.Image_main.img,size=4,color=(0,255,255))
 print("Global: ",global_vect)
 global_vect.display(is_canvas=True,canvas=method.Image_main.img,name="Vectors",show_coordinates=True,size=3,color=(255,2,255))
-method.Image_main.save("211test.jpg")
+method.Image_main.save("211test.jpg")"""
