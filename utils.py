@@ -237,3 +237,16 @@ class Vector:
                 return np.arccos(self * other / self.get_length() / other.get_length())
         else:
             raise TypeError("2nd argument is not a Vector instance")
+
+    def move_to_start(self):
+        """Moves the vector to the beggining of the coordinate system, i.e. starting position is at (0,0)"""
+        return Vector(self.start-self.start,self.end-self.start)
+
+a = Vector(SpecialList([100,100]),SpecialList([150,150]))
+b = Vector(SpecialList([100,100]),SpecialList([100,5]))
+img = Image_Helper(filepath='photos/test_pink.png')
+a.draw(img.img,color=(255,27,22))
+b.draw(img.img)
+
+print(Vector.get_angle(a,b))
+img.show()
