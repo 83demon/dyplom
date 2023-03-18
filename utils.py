@@ -1,3 +1,5 @@
+import sys
+
 import cv2
 import numpy as np
 import math
@@ -8,7 +10,7 @@ class Image_Helper:
 
     def __init__(self, img=None, filepath=None, ):
         if filepath:
-            self.img = Image_Helper.read(filepath)
+            self.img = Image_Helper._read(filepath)
         elif img.any():
             self.img = img
         else:
@@ -28,7 +30,7 @@ class Image_Helper:
         return self.img.shape
 
     @staticmethod
-    def read(filename):
+    def _read(filename):
         return cv2.imread(filename)
 
     def crop(self, shape: tuple, bias: tuple = (0, 0)):
@@ -171,7 +173,7 @@ class Vector:
         return self.end - self.start
 
     def get_length(self):
-        return np.sqrt(np.sum(i**2 for i in self.get_direction()))
+        return np.sqrt(np.sum([i**2 for i in self.get_direction()]))
 
     def draw(self,canvas,size=3,color=(255,0,255)):
         return cv2.arrowedLine(canvas, (self.start[1],self.start[0]), (self.end[1],self.end[0]), color,size)  # translation (y,x) -> (x,y)
@@ -195,7 +197,22 @@ class Vector:
 
     def __mul__(self, other):
         if isinstance(other,(int,float)):
-            return Vector(self.start,self.end+self.get_direction()*(other-1))
+            #  return Vector(self.start,self.end+SpecialList(list(map(int,self.get_direction()*(other-1))))) ## approximate coordinates for visualising
+            if isinstance(other,float):
+                print("Perfoming the Vector multiplication with a Float number. Pixels coordinates on an image "
+                      "are to be an Int type.",file=sys.stderr)
+            return Vector(self.start, self.end + self.get_direction() * (other - 1))
+        elif isinstance(other, Vector):
+            self_x,self_y = self.get_direction()
+            other_x, other_y = other.get_direction()
+            return self_x*other_x + self_y*other_y
+        else:
+            raise TypeError(f"Bad type argument given: {type(other)}. Expected type is int or float.")
+
+    def __truediv__(self, other):
+        if isinstance(other, (int, float)):
+            assert other != 0 and other > 0
+            return self * (1/other)
         else:
             raise TypeError(f"Bad type argument given: {type(other)}. Expected type is int or float.")
 
@@ -210,3 +227,13 @@ class Vector:
             return self.end==other.end and self.start == other.start
         else:
             raise TypeError("Can not compare Vector with non-Vector")
+
+    @staticmethod
+    def get_angle(self,other,mode='degrees'):
+        if isinstance(other,Vector):
+            if mode=='degrees':
+                return np.arccos(self*other/self.get_length()/other.get_length())*180/np.pi
+            elif mode=='radians':
+                return np.arccos(self * other / self.get_length() / other.get_length())
+        else:
+            raise TypeError("2nd argument is not a Vector instance")
