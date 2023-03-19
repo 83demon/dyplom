@@ -242,6 +242,56 @@ class Vector:
         """Moves the vector to the beggining of the coordinate system, i.e. starting position is at (0,0)"""
         return Vector(self.start-self.start,self.end-self.start)
 
+class VectorHelper:
+    @staticmethod
+    def get_line_eq_coeffs(self: Vector):
+        """Returns triplet (True,k,b) of equation y=kx+b, if the line is vertical, it returns (False,c), where x=c."""
+        if isinstance(self,Vector):
+            if round(self.start[1]-self.end[1],ndigits=8)!=0:  # check if (x_1 - x_2) != 0
+                k = (self.start[0]-self.end[0])/(self.start[1]-self.end[1])
+                b = self.start[0]-k*self.start[1]
+                return (True,k,b)
+            else:
+                return (False,self.start[1])
+        else:
+            raise TypeError("Vector type is expected.")
+
+    @staticmethod
+    def move_line_to_point(triplet: tuple, self:Vector):
+        """Moves the given line to the end of a vector, so that vector touches the line with its end."""
+        if isinstance(triplet,tuple) and isinstance(self,Vector) and len(triplet) in [2,3]:
+            if triplet[0]:
+                k = triplet[1]
+                b = self.end[0]-self.end[1]*k
+                return (True,k,b)
+            else:
+                return (False,self.end[1])
+
+        else:
+            raise TypeError("Arguments are expected to be tuple and Vector types respectively. Length of triplet must be"
+                            "either 2 or 3.")
+
+    @staticmethod
+    def find_intersection(triplet1: tuple, triplet2: tuple):
+        """Finds the (y,x) of intersection of two lines."""
+        if triplet1[0] and triplet2[0]:
+            _,k1,b1 = triplet1
+            _, k2,b2 = triplet2
+            x = (b2-b1)/(k1-k2)
+            y = k1*x+b1
+        elif triplet1[0] and not triplet2[0]:
+            _,x = triplet2
+            _, k1,b1 = triplet1
+            y = k1*x+b1
+        elif not triplet1[0] and triplet2[0]:
+            _,x = triplet1
+            _,k2,b2 = triplet2
+            y = k2*x+b2
+        else:
+            raise ValueError("Two vertical lines do not have single point of intersection.")
+        return (x,y)
+
+
 a = Vector(SpecialList([100,100]),SpecialList([150,150]))
 b = Vector(SpecialList([100,100]),SpecialList([100,5]))
 img = Image_Helper(filepath='photos/test_pink.png')

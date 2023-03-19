@@ -51,7 +51,7 @@ class LocalAndGlobalMaximumShift(Image_Helper):
             M = np.float32([[1,0, -self.O_tilda_O.get_direction()[1]],
                         [0,1, -self.O_tilda_O.get_direction()[0]]])
         else:
-            L_inverted = np.linalg.inv(L)
+            L_inverted = np.linalg.inv(self.L)
             M = np.float32([[L_inverted[0,0], L_inverted[0,1], -self.O_tilda_O.get_direction()[1]],
                         [L_inverted[1,0], L_inverted[1,1], -self.O_tilda_O.get_direction()[0]]])
 
@@ -64,14 +64,14 @@ class LocalAndGlobalMaximumShift(Image_Helper):
         e2 = (self.O_B.move_to_start())/self.O_B.get_length()
         E_1 = Vector(SpecialList([0,0]),SpecialList([0,1]))
         E_2 = Vector(SpecialList([0,0]),SpecialList([1,0]))
-        """e_1x = np.cos(Vector.get_angle(e1,E_1))  # as E_1 and E_2 are unary vectors, we do not need to muptiply their length on np.cos()
+        e_1x = np.cos(Vector.get_angle(e1,E_1))  # as E_1 and E_2 are unary vectors, we do not need to muptiply their length on np.cos()
         e_1y = np.cos(Vector.get_angle(e2,E_1))
         e_2x = np.cos(Vector.get_angle(e1,E_2))
         e_2y = np.cos(Vector.get_angle(e2,E_2))
         self.T = np.array([[e_1x,e_2x],[e_1y,e_2y]]) # from e->E basys
-        self.L = np.linalg.inv(self.T)@self.L@self.T # matrix in basys E_1,E_2"""
+        self.L = np.linalg.inv(self.T)@self.L@self.T # matrix in basys E_1,E_2
 
-        e_1x,e_1y = e1.get_direction()
+        """e_1x,e_1y = e1.get_direction()
         e_2x,e_2y = e2.get_direction()
         self.T = np.array([[e_1x,e_2x],[e_1y,e_2y]])  # from E->e basys
         self.L = self.T@self.L@np.linalg.inv(self.T)  # matrix in basys E_1,E_2"""
@@ -81,12 +81,12 @@ class LocalAndGlobalMaximumShift(Image_Helper):
     def _contsruct_transformation_operator(self):
         O_A = self.O_A.move_to_start()
         O_B = self.O_B.move_to_start()
-        O_A1_normalized = (self.O_A1.move_to_start())/O_A
-        O_B1_normalized = (self.O_B1.move_to_start())/O_B
-        L_1x = O_A1_normalized.get_length()*np.cos(Vector.get_angle(O_A,O_A1_normalized))
-        L_1y = O_A1_normalized.get_length()*np.cos(Vector.get_angle(O_B,O_A1_normalized))
-        L_2x = O_B1_normalized.get_length()*np.cos(Vector.get_angle(O_A,O_B1_normalized))
-        L_2y = O_B1_normalized.get_length()*np.cos(Vector.get_angle(O_B,O_B1_normalized))
+        O_A1_normalized = (self.O_A1.move_to_start())/O_A.get_length()
+        O_B1_normalized = (self.O_B1.move_to_start())/O_B.get_length()
+        L_1x = O_A1_normalized.get_length()*np.cos(Vector.get_angle(O_A,O_A1_normalized,mode="radians"))
+        L_1y = O_A1_normalized.get_length()*np.cos(Vector.get_angle(O_B,O_A1_normalized,mode="radians"))
+        L_2x = O_B1_normalized.get_length()*np.cos(Vector.get_angle(O_A,O_B1_normalized,mode="radians"))
+        L_2y = O_B1_normalized.get_length()*np.cos(Vector.get_angle(O_B,O_B1_normalized,mode="radians"))
         self.L = np.array([[L_1x,L_2x],[L_1y,L_2y]])
 
     def _calculate_basys_vectors(self):
@@ -94,8 +94,8 @@ class LocalAndGlobalMaximumShift(Image_Helper):
         O_B_tilda = Vector(self.O, self.B_tilda)
         self.O_A = O_A_tilda + self.O_tilda_O
         self.O_B = O_B_tilda + self.O_tilda_O
-        self.O_A1 = Vector(self.A_tilda, self.A1) + self.O_tilda_O + self.O_A
-        self.O_B1 = Vector(self.B_tilda, self.B1) + self.O_tilda_O + self.O_B
+        self.O_A1 = self.O_A + Vector(self.A_tilda, self.A1)
+        self.O_B1 = self.O_B + Vector(self.B_tilda, self.B1)
 
     def _assign_points(self,global_vect):
         self.O = global_vect.end.copy()
@@ -106,14 +106,21 @@ class LocalAndGlobalMaximumShift(Image_Helper):
         self.B1 = B_tilda_B1.end.copy()
 
     def _select_A_and_B(self):
+        """Selects two vectors, which will form an angle (BOA) closest to the 90 degrees.
+            B = B_tilda + O_O_tilda
+            A = A_tilda + O_O_tilda"""
         assert len(self.vectors)>=2
-        angles_map = {}
+        angles_map = {} #  key is pair of indexes of vectors, value: pair: 1st is how far the angle from 90 degrees is,2nd is real value
         for i in range(len(self.vectors)):
             for j in range(len(self.vectors)):
                 if i!=j and (i,j) not in angles_map.keys() and (j,i) not in angles_map.keys():
-                    angles_map[(i,j)] = Vector.get_angle(self.vectors[i],self.vectors[j])
+                    A_tilda = self.vectors[i].start
+                    B_tilda = self.vectors[j].start
+                    OA = Vector(self.O, A_tilda) + self.O_tilda_O
+                    OB = Vector(self.O, B_tilda) + self.O_tilda_O
+                    angles_map[(i,j)] = (abs(Vector.get_angle(OA,OB)-90),Vector.get_angle(OA,OB))
 
-        angles_map = dict(sorted(angles_map.items(), key=lambda item: item[1],reverse=True))
+        angles_map = dict(sorted(angles_map.items(), key=lambda item: item[1][0]))
         i,j = list(angles_map.keys())[0]
         return self.vectors[i],self.vectors[j]
     def _find_global_vector(self):
