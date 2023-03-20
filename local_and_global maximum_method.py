@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from utils import Image_Helper, SpecialList, Vector
+from utils import Image_Helper, SpecialList, Vector, VectorHelper
 from point_finders import MaximumColorFinder
 
 
@@ -64,10 +64,10 @@ class LocalAndGlobalMaximumShift(Image_Helper):
         e2 = (self.O_B.move_to_start())/self.O_B.get_length()
         E_1 = Vector(SpecialList([0,0]),SpecialList([0,1]))
         E_2 = Vector(SpecialList([0,0]),SpecialList([1,0]))
-        e_1x = np.cos(Vector.get_angle(e1,E_1))  # as E_1 and E_2 are unary vectors, we do not need to muptiply their length on np.cos()
-        e_1y = np.cos(Vector.get_angle(e2,E_1))
-        e_2x = np.cos(Vector.get_angle(e1,E_2))
-        e_2y = np.cos(Vector.get_angle(e2,E_2))
+        e_1x = np.cos(VectorHelper.get_angle(e1,E_1))  # as E_1 and E_2 are unary vectors, we do not need to muptiply their length on np.cos()
+        e_1y = np.cos(VectorHelper.get_angle(e2,E_1))
+        e_2x = np.cos(VectorHelper.get_angle(e1,E_2))
+        e_2y = np.cos(VectorHelper.get_angle(e2,E_2))
         self.T = np.array([[e_1x,e_2x],[e_1y,e_2y]]) # from e->E basys
         self.L = np.linalg.inv(self.T)@self.L@self.T # matrix in basys E_1,E_2
 
@@ -79,14 +79,23 @@ class LocalAndGlobalMaximumShift(Image_Helper):
 
 
     def _contsruct_transformation_operator(self):
-        O_A = self.O_A.move_to_start()
-        O_B = self.O_B.move_to_start()
-        O_A1_normalized = (self.O_A1.move_to_start())/O_A.get_length()
-        O_B1_normalized = (self.O_B1.move_to_start())/O_B.get_length()
-        L_1x = O_A1_normalized.get_length()*np.cos(Vector.get_angle(O_A,O_A1_normalized,mode="radians"))
-        L_1y = O_A1_normalized.get_length()*np.cos(Vector.get_angle(O_B,O_A1_normalized,mode="radians"))
-        L_2x = O_B1_normalized.get_length()*np.cos(Vector.get_angle(O_A,O_B1_normalized,mode="radians"))
-        L_2y = O_B1_normalized.get_length()*np.cos(Vector.get_angle(O_B,O_B1_normalized,mode="radians"))
+        e_1 = self.O_A.move_to_start()/self.O_A.get_length()
+        e_2 = self.O_B.move_to_start()/self.O_B.get_length()
+        O_A1_normalized = (self.O_A1.move_to_start())/self.O_A.get_length()
+        O_B1_normalized = (self.O_B1.move_to_start())/self.O_B.get_length()
+        line_e1 = VectorHelper.get_line_eq_coeffs(e_1)
+        line_e2 = VectorHelper.get_line_eq_coeffs(e_2)
+
+        parallel_e2_line_OA1 = VectorHelper.move_line_to_point(line_e2,O_A1_normalized)
+        parallel_e1_line_OA1 = VectorHelper.move_line_to_point(line_e1,O_A1_normalized)
+        L_1x_abs = VectorHelper.find_intersection(parallel_e2_line_OA1,line_e1)
+        L_1y_abs = VectorHelper.find_intersection(parallel_e1_line_OA1,line_e2)
+
+        parallel_e2_line_OB1 = VectorHelper.move_line_to_point(line_e2,O_B1_normalized)
+        parallel_e1_line_OB1 = VectorHelper.move_line_to_point(line_e1,O_B1_normalized)
+        L_2x_abs = VectorHelper.find_intersection(parallel_e2_line_OB1,line_e1)
+        L_2y_abs = VectorHelper.find_intersection(parallel_e1_line_OB1,line_e2)
+
         self.L = np.array([[L_1x,L_2x],[L_1y,L_2y]])
 
     def _calculate_basys_vectors(self):
@@ -118,7 +127,7 @@ class LocalAndGlobalMaximumShift(Image_Helper):
                     B_tilda = self.vectors[j].start
                     OA = Vector(self.O, A_tilda) + self.O_tilda_O
                     OB = Vector(self.O, B_tilda) + self.O_tilda_O
-                    angles_map[(i,j)] = (abs(Vector.get_angle(OA,OB)-90),Vector.get_angle(OA,OB))
+                    angles_map[(i,j)] = (abs(VectorHelper.get_angle(OA,OB)-90),VectorHelper.get_angle(OA,OB))
 
         angles_map = dict(sorted(angles_map.items(), key=lambda item: item[1][0]))
         i,j = list(angles_map.keys())[0]
