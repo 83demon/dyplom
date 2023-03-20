@@ -162,7 +162,7 @@ class Vector:
 
     def __init__(self, start: SpecialList, end: SpecialList):
         assert isinstance(start,SpecialList) and isinstance(end,SpecialList) \
-               and len(start)==len(end)==2
+               and len(start)==len(end)==2 and (end-start)!=[0,0]
         self.start = start
         self.end = end
 
@@ -228,44 +228,46 @@ class Vector:
         else:
             raise TypeError("Can not compare Vector with non-Vector")
 
+    def move_to_start(self):
+        """Moves the vector to the beggining of the coordinate system, i.e. starting position is at (0,0)"""
+        return Vector(self.start-self.start,self.end-self.start)
+
+
+class VectorHelper:
+
     @staticmethod
-    def get_angle(self,other,mode='degrees'):
-        if isinstance(other,Vector):
+    def get_angle(self:Vector,other:Vector,mode='degrees'):
+        if isinstance(other,Vector) and isinstance(self,Vector):
             if mode=='degrees':
                 return np.arccos(self*other/self.get_length()/other.get_length())*180/np.pi
             elif mode=='radians':
                 return np.arccos(self * other / self.get_length() / other.get_length())
         else:
-            raise TypeError("2nd argument is not a Vector instance")
+            raise TypeError("Arguments are expected to be a Vector type.")
 
-    def move_to_start(self):
-        """Moves the vector to the beggining of the coordinate system, i.e. starting position is at (0,0)"""
-        return Vector(self.start-self.start,self.end-self.start)
-
-class VectorHelper:
     @staticmethod
-    def get_line_eq_coeffs(self: Vector):
+    def get_line_eq_coeffs(vector: Vector):
         """Returns triplet (True,k,b) of equation y=kx+b, if the line is vertical, it returns (False,c), where x=c."""
-        if isinstance(self,Vector):
-            if round(self.start[1]-self.end[1],ndigits=8)!=0:  # check if (x_1 - x_2) != 0
-                k = (self.start[0]-self.end[0])/(self.start[1]-self.end[1])
-                b = self.start[0]-k*self.start[1]
+        if isinstance(vector,Vector):
+            if round(vector.start[1]-vector.end[1],ndigits=8)!=0:  # check if (x_1 - x_2) != 0
+                k = (vector.start[0]-vector.end[0])/(vector.start[1]-vector.end[1])
+                b = vector.start[0]-k*vector.start[1]
                 return (True,k,b)
             else:
-                return (False,self.start[1])
+                return (False,vector.start[1])
         else:
             raise TypeError("Vector type is expected.")
 
     @staticmethod
-    def move_line_to_point(triplet: tuple, self:Vector):
+    def move_line_to_point(triplet: tuple, vector:Vector):
         """Moves the given line to the end of a vector, so that vector touches the line with its end."""
-        if isinstance(triplet,tuple) and isinstance(self,Vector) and len(triplet) in [2,3]:
+        if isinstance(triplet,tuple) and isinstance(vector,Vector) and len(triplet) in [2,3]:
             if triplet[0]:
                 k = triplet[1]
-                b = self.end[0]-self.end[1]*k
+                b = vector.end[0]-vector.end[1]*k
                 return (True,k,b)
             else:
-                return (False,self.end[1])
+                return (False,vector.end[1])
 
         else:
             raise TypeError("Arguments are expected to be tuple and Vector types respectively. Length of triplet must be"
@@ -289,14 +291,24 @@ class VectorHelper:
             y = k2*x+b2
         else:
             raise ValueError("Two vertical lines do not have single point of intersection.")
-        return (x,y)
+        return (y,x)
 
+    @classmethod
+    def co_linearance(cls,vector1:Vector,vector2:Vector):
+        """Returns True if vectors are colinear, otherwise returns False."""
+        line1 = cls.get_line_eq_coeffs(vector1)
+        line2 = cls.get_line_eq_coeffs(vector2)
+        line1_adjusted = cls.move_line_to_point(line1,vector2)
+        return line1_adjusted==line2
 
-a = Vector(SpecialList([100,100]),SpecialList([150,150]))
-b = Vector(SpecialList([100,100]),SpecialList([100,5]))
-img = Image_Helper(filepath='photos/test_pink.png')
-a.draw(img.img,color=(255,27,22))
-b.draw(img.img)
-
-print(Vector.get_angle(a,b))
-img.show()
+    @classmethod
+    def co_direction(cls,vector1:Vector,vector2:Vector):
+        """Returns True if colinear vectors are co-directed. Returns False if colinear vectors are oppositely directed.
+        Throws an error if vectors are not colinear."""
+        if cls.co_linearance(vector1,vector2):
+            vector1_direction = vector1.get_direction()
+            vector2_direction = vector2.get_direction()
+            return np.sign(vector1_direction[0])==np.sign(vector2_direction[0]) \
+                   and np.sign(vector1_direction[1])==np.sign(vector2_direction[1])
+        else:
+            raise AssertionError("Vectors are not colinear.")
