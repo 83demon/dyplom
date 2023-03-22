@@ -90,11 +90,19 @@ class LocalAndGlobalMaximumShift(Image_Helper):
         parallel_e1_line_OA1 = VectorHelper.move_line_to_point(line_e1,O_A1_normalized)
         L_1x_abs = VectorHelper.find_intersection(parallel_e2_line_OA1,line_e1)
         L_1y_abs = VectorHelper.find_intersection(parallel_e1_line_OA1,line_e2)
+        projection_vector_L_1x = Vector(e_1.start,SpecialList(L_1x_abs))
+        projection_vector_L_1y = Vector(e_2.start,SpecialList(L_1y_abs))
+        L_1x = projection_vector_L_1x.get_length()/e_1.get_length()*VectorHelper.co_direction(e_1,projection_vector_L_1x)
+        L_1y = projection_vector_L_1y.get_length()/e_2.get_length()*VectorHelper.co_direction(e_2,projection_vector_L_1y)
 
         parallel_e2_line_OB1 = VectorHelper.move_line_to_point(line_e2,O_B1_normalized)
         parallel_e1_line_OB1 = VectorHelper.move_line_to_point(line_e1,O_B1_normalized)
         L_2x_abs = VectorHelper.find_intersection(parallel_e2_line_OB1,line_e1)
         L_2y_abs = VectorHelper.find_intersection(parallel_e1_line_OB1,line_e2)
+        projection_vector_L_2x = Vector(e_1.start,SpecialList(L_2x_abs))
+        projection_vector_L_2y = Vector(e_2.start,SpecialList(L_2y_abs))
+        L_2x = projection_vector_L_2x.get_length()/e_1.get_length()*VectorHelper.co_direction(e_1,projection_vector_L_2x)
+        L_2y = projection_vector_L_2y.get_length()/e_2.get_length()*VectorHelper.co_direction(e_2,projection_vector_L_2y)
 
         self.L = np.array([[L_1x,L_2x],[L_1y,L_2y]])
 

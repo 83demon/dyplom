@@ -295,20 +295,23 @@ class VectorHelper:
 
     @classmethod
     def co_linearance(cls,vector1:Vector,vector2:Vector):
-        """Returns True if vectors are colinear, otherwise returns False."""
+        """Returns True if vectors are colinear, i.e. vectors are parallel, otherwise returns False."""
         line1 = cls.get_line_eq_coeffs(vector1)
         line2 = cls.get_line_eq_coeffs(vector2)
-        line1_adjusted = cls.move_line_to_point(line1,vector2)
-        return line1_adjusted==line2
+        if (line1[0] and line2[0]) or (not line1[0] and not line2[0]):
+            return np.round(line1[1]-line2[1],decimals=8)==0
+        else:
+            return False
 
     @classmethod
     def co_direction(cls,vector1:Vector,vector2:Vector):
-        """Returns True if colinear vectors are co-directed. Returns False if colinear vectors are oppositely directed.
+        """Returns 1 if colinear vectors are co-directed. Returns -1 if colinear vectors are oppositely directed.
         Throws an error if vectors are not colinear."""
         if cls.co_linearance(vector1,vector2):
             vector1_direction = vector1.get_direction()
             vector2_direction = vector2.get_direction()
-            return np.sign(vector1_direction[0])==np.sign(vector2_direction[0]) \
+            res = np.sign(vector1_direction[0])==np.sign(vector2_direction[0]) \
                    and np.sign(vector1_direction[1])==np.sign(vector2_direction[1])
+            return 1 if res else -1
         else:
             raise AssertionError("Vectors are not colinear.")
