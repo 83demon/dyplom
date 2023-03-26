@@ -62,19 +62,23 @@ class LocalAndGlobalMaximumShift(Image_Helper):
     def _basys_change(self):
         e1 = (self.O_A.move_to_start())/self.O_A.get_length()
         e2 = (self.O_B.move_to_start())/self.O_B.get_length()
-        E_1 = Vector(SpecialList([0,0]),SpecialList([0,1]))
+
+        """E_1 = Vector(SpecialList([0,0]),SpecialList([0,1]))
         E_2 = Vector(SpecialList([0,0]),SpecialList([1,0]))
-        e_1x = np.cos(VectorHelper.get_angle(e1,E_1))  # as E_1 and E_2 are unary vectors, we do not need to muptiply their length on np.cos()
+
+        e_1x = np.cos(VectorHelper.get_angle(e1,E_1))
         e_1y = np.cos(VectorHelper.get_angle(e2,E_1))
+
         e_2x = np.cos(VectorHelper.get_angle(e1,E_2))
         e_2y = np.cos(VectorHelper.get_angle(e2,E_2))
-        self.T = np.array([[e_1x,e_2x],[e_1y,e_2y]]) # from e->E basys
-        self.L = np.linalg.inv(self.T)@self.L@self.T # matrix in basys E_1,E_2
 
-        """e_1x,e_1y = e1.get_direction()
+        self.T = np.array([[e_1x,e_2x],[e_1y,e_2y]]) # from e->E basys
+        self.L = np.linalg.inv(self.T)@self.L@self.T # matrix in basys E_1,E_2"""
+
+        e_1x,e_1y = e1.get_direction()
         e_2x,e_2y = e2.get_direction()
         self.T = np.array([[e_1x,e_2x],[e_1y,e_2y]])  # from E->e basys
-        self.L = self.T@self.L@np.linalg.inv(self.T)  # matrix in basys E_1,E_2"""
+        self.L = self.T@self.L@np.linalg.inv(self.T)  # matrix in basys E_1,E_2
 
 
 
