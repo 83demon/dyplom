@@ -49,6 +49,7 @@ class Image_Helper:
         cv2.moveWindow(name,0,0)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
+        return self
 
     @staticmethod
     def show_multiple_images(images: list, captions: list = None, step_by_step: bool = False,
@@ -96,6 +97,19 @@ class Image_Helper:
             return Image_Helper(
                 img=np.pad(self.img, ((0, -vertical_shift), (0, -horizontal_shift), (0, 0)))[-vertical_shift:,
                     -horizontal_shift:, :])
+
+    def rotate(self, angle, center=None, scale=1.0):
+        (h, w) = self.img.shape[:2]
+
+        if center is None:
+            center = (w / 2, h / 2)
+
+        # Perform the rotation
+        M = cv2.getRotationMatrix2D(center, angle, scale)
+        rotated = cv2.warpAffine(self.img, M, (w, h))
+
+        return Image_Helper(img=rotated)
+
 
 class SpecialList(list):
     def __init__(self, data: list = []):
@@ -162,9 +176,10 @@ class Vector:
 
     def __init__(self, start: SpecialList, end: SpecialList):
         assert isinstance(start,SpecialList) and isinstance(end,SpecialList) \
-               and len(start)==len(end)==2 and (end-start)!=[0,0]
+               and len(start)==len(end)==2
         self.start = start
         self.end = end
+        self.is_null_vector = (end-start)==[0,0]
 
     def __repr__(self):
         return f"(Start: {self.start}; End: {self.end}; Direction:{self.get_direction()})"
@@ -238,10 +253,13 @@ class VectorHelper:
     @staticmethod
     def get_angle(self:Vector,other:Vector,mode='degrees'):
         if isinstance(other,Vector) and isinstance(self,Vector):
-            if mode=='degrees':
-                return np.arccos(self*other/self.get_length()/other.get_length())*180/np.pi
-            elif mode=='radians':
-                return np.arccos(self * other / self.get_length() / other.get_length())
+            if not self.is_null_vector and not other.is_null_vector:
+                if mode=='degrees':
+                    return np.arccos(self*other/self.get_length()/other.get_length())*180/np.pi
+                elif mode=='radians':
+                    return np.arccos(self * other / self.get_length() / other.get_length())
+            else:
+                raise ValueError("Can't perform angle calculation. One of the given vectors is a null vector.")
         else:
             raise TypeError("Arguments are expected to be a Vector type.")
 
@@ -249,12 +267,15 @@ class VectorHelper:
     def get_line_eq_coeffs(vector: Vector):
         """Returns triplet (True,k,b) of equation y=kx+b, if the line is vertical, it returns (False,c), where x=c."""
         if isinstance(vector,Vector):
-            if round(vector.start[1]-vector.end[1],ndigits=8)!=0:  # check if (x_1 - x_2) != 0
-                k = (vector.start[0]-vector.end[0])/(vector.start[1]-vector.end[1])
-                b = vector.start[0]-k*vector.start[1]
-                return (True,k,b)
+            if not vector.is_null_vector:
+                if round(vector.start[1]-vector.end[1],ndigits=8)!=0:  # check if (x_1 - x_2) != 0
+                    k = (vector.start[0]-vector.end[0])/(vector.start[1]-vector.end[1])
+                    b = vector.start[0]-k*vector.start[1]
+                    return (True,k,b)
+                else:
+                    return (False,vector.start[1])
             else:
-                return (False,vector.start[1])
+                raise ValueError("Can't perform the action. The given vector is a null vector.")
         else:
             raise TypeError("Vector type is expected.")
 
@@ -262,13 +283,15 @@ class VectorHelper:
     def move_line_to_point(triplet: tuple, vector:Vector):
         """Moves the given line to the end of a vector, so that vector touches the line with its end."""
         if isinstance(triplet,tuple) and isinstance(vector,Vector) and len(triplet) in [2,3]:
-            if triplet[0]:
-                k = triplet[1]
-                b = vector.end[0]-vector.end[1]*k
-                return (True,k,b)
+            if not vector.is_null_vector:
+                if triplet[0]:
+                    k = triplet[1]
+                    b = vector.end[0]-vector.end[1]*k
+                    return (True,k,b)
+                else:
+                    return (False,vector.end[1])
             else:
-                return (False,vector.end[1])
-
+                raise ValueError("Can't perform the action. The given vector is a null vector.")
         else:
             raise TypeError("Arguments are expected to be tuple and Vector types respectively. Length of triplet must be"
                             "either 2 or 3.")
@@ -296,22 +319,34 @@ class VectorHelper:
     @classmethod
     def co_linearance(cls,vector1:Vector,vector2:Vector):
         """Returns True if vectors are colinear, i.e. vectors are parallel, otherwise returns False."""
-        line1 = cls.get_line_eq_coeffs(vector1)
-        line2 = cls.get_line_eq_coeffs(vector2)
-        if (line1[0] and line2[0]) or (not line1[0] and not line2[0]):
-            return np.round(line1[1]-line2[1],decimals=8)==0
+        if isinstance(vector1,Vector) and isinstance(vector2,Vector):
+            if not vector1.is_null_vector and not vector2.is_null_vector:
+                line1 = cls.get_line_eq_coeffs(vector1)
+                line2 = cls.get_line_eq_coeffs(vector2)
+                if (line1[0] and line2[0]) or (not line1[0] and not line2[0]):
+                    return np.round(line1[1]-line2[1],decimals=8)==0
+                else:
+                    return False
+            else:
+                raise ValueError("Can't perform the action. One of the given vectors is a null vector.")
         else:
-            return False
+            raise TypeError("Vector type is expected.")
 
     @classmethod
     def co_direction(cls,vector1:Vector,vector2:Vector):
         """Returns 1 if colinear vectors are co-directed. Returns -1 if colinear vectors are oppositely directed.
         Throws an error if vectors are not colinear."""
-        if cls.co_linearance(vector1,vector2):
-            vector1_direction = vector1.get_direction()
-            vector2_direction = vector2.get_direction()
-            res = np.sign(vector1_direction[0])==np.sign(vector2_direction[0]) \
-                   and np.sign(vector1_direction[1])==np.sign(vector2_direction[1])
-            return 1 if res else -1
+        if isinstance(vector1,Vector) and isinstance(vector2,Vector):
+            if not vector1.is_null_vector and not vector2.is_null_vector:
+                if cls.co_linearance(vector1,vector2):
+                    vector1_direction = vector1.get_direction()
+                    vector2_direction = vector2.get_direction()
+                    res = np.sign(vector1_direction[0])==np.sign(vector2_direction[0]) \
+                           and np.sign(vector1_direction[1])==np.sign(vector2_direction[1])
+                    return 1 if res else -1
+                else:
+                    raise AssertionError("Vectors are not colinear.")
+            else:
+                raise ValueError("Can't perform the action. One of the given vectors is a null vector.")
         else:
-            raise AssertionError("Vectors are not colinear.")
+            raise TypeError("Vector type is expected.")

@@ -3,6 +3,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 from utils import Image_Helper
 
+class CenterMassFinder(Image_Helper):
+    """Finds a point which is a center mass of an image within a given channel. Returns (y,x), i.e. swapped!!!"""
+    def find_max(self,channel):
+        assert isinstance(channel,int)
+
+        values = self.img[:,:,channel]
+
+        y_indexes = np.array(range(1,values.shape[0]+1)).reshape(-1,1)
+        y_point = int((values*y_indexes/values.sum()).sum())
+
+        x_indexes = np.array(range(1,values.shape[1]+1))
+        x_point = int((values*x_indexes/values.sum()).sum())
+
+        return y_point,x_point
+
 
 class MaximumColorFinder(Image_Helper):
     """Finds the point with the maximum color.
@@ -109,4 +124,3 @@ class DensityFinder(Image_Helper):
             axes[3].imshow(self.img)
             plt.show()
         return point
-
