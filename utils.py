@@ -110,6 +110,25 @@ class Image_Helper:
 
         return Image_Helper(img=rotated)
 
+    def change_brightness(self, alpha=3, beta=40):
+        return Image_Helper(img=cv2.convertScaleAbs(self.img, alpha=alpha, beta=beta))
+
+    @staticmethod
+    def find_countors_area(img):
+        imgGray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        ImgThresh = cv2.threshold(imgGray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+        ImgThreshDilation = cv2.dilate(ImgThresh, (3, 3), iterations=2)
+        imgEdges = cv2.Canny(ImgThreshDilation, 100, 200)
+        contours, hierarchy = cv2.findContours(imgEdges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        return np.max([cv2.contourArea(cont) for cont in contours])
+        """for cont in contours:
+            if cv2.contourArea(cont)==max_val:
+                cv2.drawContours(img, cont, -1, (0, 0, 255), 5)
+                print(max_val)
+                cv2.imshow('Image with planes in Red', img)
+                cv2.waitKey(0)
+        """
+
 
 class SpecialList(list):
     def __init__(self, data: list = []):

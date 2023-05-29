@@ -1,22 +1,49 @@
 import cv2
 import numpy as np
-
+import time
 from utils import Image_Helper, SpecialList, Vector, VectorHelper
 from point_finders import CenterMassFinder
+from focus import Focus
 
+class SeriesPreprocessor:
+    def __init__(self, img_arrays):
+        if len(img_arrays)<2:
+            raise ValueError("Number of images provided is less than two.")
+        img_shapes = set()
+        for img in img_arrays:
+            img_shapes.add(img.shape)
+        if len(img_shapes)!=1:
+            raise ValueError("Images are of different shapes.")
+        self.results = []
+        self.length = len(img_arrays)
+        self.img_arrays = img_arrays
+
+    def main(self,show=False,focus=False,brigth=True):
+        sample = [Image_Helper(img=self.img_arrays[0]).find_countors_area(self.img_arrays[0])]
+        for i in range(self.length-1):
+            image_restored_object = LocalAndGlobalMaximumShift(img=self.img_arrays[i],img_shifted=self.img_arrays[i+1]).main(sample, show=show, focus=focus)
+            self.results.append(image_restored_object)
+        median = np.median(sample)
+        index_of_candidate = np.abs(sample - median).argmin()
+        res = None
+        if not focus:
+            res = Focus(img=self.img_arrays[index_of_candidate]).fft_deblur_rgb()
+        else:
+            res = self.results[index_of_candidate]
+        if brigth:
+            res = res.change_brightness()
+        return res
 
 class LocalAndGlobalMaximumShift(Image_Helper):
 
-    def __init__(self, split_vert, split_horiz, vert_shift, horiz_shift, angle_rotate, channel, img=None, filepath=None):
+    def __init__(self, split_vert=2, split_horiz=2, channel=2, img=None,filepath=None, img_shifted=None,filepath_shifted=None):
         super().__init__(img, filepath)
         self.Image_main = self
-        self.Image_shifted = self.Image_main.shift(vertical_shift=vert_shift, horizontal_shift=horiz_shift).rotate(angle_rotate)
+        self.Image_shifted = Image_Helper(img=img_shifted,filepath=filepath_shifted)
         self.Images_main_split = self.Image_main.split(height_num=split_vert, width_num=split_horiz)
         self.Images_shifted_split = self.Image_shifted.split(height_num=split_vert, width_num=split_horiz)
         self.Image_restored = None
 
-        self.vert_shift = vert_shift
-        self.horiz_shift = horiz_shift
         self.split_vert = split_vert
         self.split_horiz = split_horiz
 
@@ -40,29 +67,32 @@ class LocalAndGlobalMaximumShift(Image_Helper):
         self.L = np.zeros((2,2)) # transformation operator
         self.T = None # transformation matrix to new basys
 
-    def main(self):
+    def main(self,sample:list,show=False,focus=False):
         self.O_tilda_O = self._find_global_vector()
         self._assign_points()
         self._calculate_basys_vectors()
         if self._able_to_create_operator():
             self._contsruct_transformation_operator()
             self._basys_change()
-
+        res = None
         if np.linalg.det(self.L)==0:
-            print("Matrix is singular. Only shifting by -s")
-            M = np.float32([[1,0, -self.O_tilda_O.get_direction()[1]],
-                        [0,1, -self.O_tilda_O.get_direction()[0]]])
+            print("Matrix is singular. No transformations will be done.")
+            res = self.Image_main
         else:
-            L_inverted = np.linalg.inv(self.L)
-            print("L\n",self.L)
-            print("L inverted\n",L_inverted)
-
-            M = np.float32([[L_inverted[0,0], L_inverted[0,1], -self.O_tilda_O.get_direction()[1]],
-                        [L_inverted[1,0], L_inverted[1,1], -self.O_tilda_O.get_direction()[0]]])
-
-        img_restored = cv2.warpAffine(self.Image_shifted.img, M, (self.Image_main.shape[1],self.Image_main.shape[0]))
-        self.Image_restored = Image_Helper(img=img_restored)
-        return self.Image_restored
+            shift_vec = np.array([self.O_tilda_O.get_direction()]).reshape(2,1)
+            rotation_matrix = np.hstack((self.L,shift_vec))
+            stacked_temp_matr = np.vstack((rotation_matrix,np.array([0,0,1])))
+            temp_inv_mat = np.linalg.inv(stacked_temp_matr)
+            rotation_matrix_inversed = cv2.invertAffineTransform(rotation_matrix)
+            img_restored = cv2.warpAffine(self.Image_shifted.img, rotation_matrix_inversed, (self.Image_main.shape[1],self.Image_main.shape[0]))
+            self.Image_restored = Image_Helper(img=img_restored)
+            res = self.Image_restored
+        sample.append(self.find_countors_area(res.img))
+        if focus:
+            res = Focus(img=self.Image_restored.img).fft_deblur_rgb()
+        if show:
+            self.show_difference()
+        return res
 
     def _basys_change(self):
         e1 = (self.O_A.move_to_start())/self.O_A.get_length()
@@ -179,22 +209,9 @@ class LocalAndGlobalMaximumShift(Image_Helper):
 
         return Vector(self.global_avg,self.global_avg_shifted)
 
+    def difference(self):
+        return Image_Helper(img=np.abs(self.Image_main.img-self.Image_restored.img))
 
-method = LocalAndGlobalMaximumShift(filepath=r"photos\\tree.jpg",split_vert=2,split_horiz=2,
-                                    vert_shift=0,horiz_shift=0,angle_rotate=3,channel=2)
-print(method.img.shape)
-method.main()
-global_vect = method.O_tilda_O
-method.Image_main.show("Original").save("Tree_Original.jpg")
-method.Image_shifted.show("Shifted").save("Tree_Shifted.jpg")
-method.Image_restored.show("Restored").save("Tree_Restored.jpg")
-print("Vectors: ")
-for vector in method.vectors:
-    print(vector)
-    vector.draw(method.Image_main.img,size=4,color=(0,255,255))
-print("Global: ",global_vect)
-global_vect.display(is_canvas=True,canvas=method.Image_main.img,name="Vectors",show_coordinates=True,size=3,color=(255,2,255))
-method.Image_main.save("Music_vectors.jpg")
+    def show_difference(self):
+        self.difference().show("Difference")
 
-
-Image_Helper(img=np.abs(method.Image_main.img-method.Image_restored.img)).show("Difference").save("Tree_Difference.jpg")
