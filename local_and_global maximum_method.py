@@ -97,8 +97,13 @@ class LocalAndGlobalMaximumShift(Image_Helper):
     def _basys_change(self):
         e1 = (self.O_A.move_to_start())/self.O_A.get_length()
         e2 = (self.O_B.move_to_start())/self.O_B.get_length()
+        e_1x,e_1y = e1.get_direction()
+        e_2x,e_2y = e2.get_direction()
+        self.T = np.array([[e_1x,e_2x],[e_1y,e_2y]])  # from E->e basys
+        self.L = self.T@self.L@np.linalg.inv(self.T)  # matrix in basys E_1,E_2
 
-        """E_1 = Vector(SpecialList([0,0]),SpecialList([0,1]))
+        """ Alternative version:
+        E_1 = Vector(SpecialList([0,0]),SpecialList([0,1]))
         E_2 = Vector(SpecialList([0,0]),SpecialList([1,0]))
 
         e_1x = np.cos(VectorHelper.get_angle(e1,E_1))
@@ -108,12 +113,8 @@ class LocalAndGlobalMaximumShift(Image_Helper):
         e_2y = np.cos(VectorHelper.get_angle(e2,E_2))
 
         self.T = np.array([[e_1x,e_2x],[e_1y,e_2y]]) # from e->E basys
-        self.L = np.linalg.inv(self.T)@self.L@self.T # matrix in basys E_1,E_2"""
-
-        e_1x,e_1y = e1.get_direction()
-        e_2x,e_2y = e2.get_direction()
-        self.T = np.array([[e_1x,e_2x],[e_1y,e_2y]])  # from E->e basys
-        self.L = self.T@self.L@np.linalg.inv(self.T)  # matrix in basys E_1,E_2
+        self.L = np.linalg.inv(self.T)@self.L@self.T # matrix in basys E_1,E_2
+        """
 
     def _able_to_create_operator(self):
         return self.O_A!=self.O_A1 and self.O_B!=self.O_B1
@@ -190,7 +191,7 @@ class LocalAndGlobalMaximumShift(Image_Helper):
 
                 points_shifted = SpecialList(CenterMassFinder(img=shifted_img).find_max(self.channel))
 
-                # normalizing with the respect to number of subimage
+                # normalizing with the respect to a number of subimages
 
                 points[0] += i * (self.Image_main.shape[0] // self.split_vert)  # coordinates are (y,x)
                 points[1] += j * (self.Image_main.shape[1] // self.split_horiz)
